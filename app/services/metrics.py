@@ -1,3 +1,3 @@
-from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST # type: ignore
+from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST 
 
 REQUEST_COUNT = Counter("gateway_requests_total", "Total requests", ["method", "path"])
