@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request,Response
 from app.services.proxy import forward_request
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST # type: ignore
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST 
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
 from app.services.stats import get_stats
