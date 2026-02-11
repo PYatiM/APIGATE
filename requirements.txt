@@ -4,3 +4,4 @@ pyjwt
 python
 redis
 httpx
+prometheus-client
