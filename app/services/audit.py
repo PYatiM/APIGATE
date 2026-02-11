@@ -1,7 +1,9 @@
 import logging
 import time
 from app.services.metrics import REQUEST_COUNT,request
+from app.services.stats import increment_requests
 
+increment_requests()
 REQUEST_COUNT.labels(request.method, request.url.path).inc()
 logger = logging.getLogger("gateway.audit")
 logging.basicConfig(level=logging.INFO)

@@ -1,0 +1,13 @@
+<html>
+<head><title>Gateway Dashboard</title></head>
+<body>
+<h1>Secure API Gateway</h1>
+<div id="stats"></div>
+
+<script>
+fetch("/stats").then(r=>r.json()).then(data=>{
+    document.getElementById("stats").innerText = "Requests: " + data.requests;
+});
+</script>
+</body>
+</html>

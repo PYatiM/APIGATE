@@ -5,3 +5,4 @@ python
 redis
 httpx
 prometheus-client
+jinja2
