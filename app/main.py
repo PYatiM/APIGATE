@@ -5,7 +5,7 @@ from app.middleware.openapi_validator import OpenAPIValidatorMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.audit import AuditMiddleware
 
-app = FastAPI(title=settings.APP_NAME)
+app = FastAPI(title="Secure API Gateway")
 
 app.include_router(router)
 app.add_middleware(OpenAPIValidatorMiddleware)
