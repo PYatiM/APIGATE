@@ -1,5 +1,3 @@
 # Secure api Gateway (APIGATE)
-
-Initial Project Bootstrap
-
+A Secure channel for APIS
 
