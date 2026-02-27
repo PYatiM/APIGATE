@@ -1,14 +1,18 @@
 import httpx
-import os
+from fastapi import Request, Response
 
-UPSTREAM = os.getenv("UPSTREAM_BASE_URL", "http://localhost:9000")
 
-async def forward_request(path, method, headers, body):
+async def proxy_request(request: Request, upstream_url: str):
     async with httpx.AsyncClient() as client:
         response = await client.request(
-            method,
-            f"{UPSTREAM}{path}",
-            headers=headers,
-            content=body,
+            method = request.method,
+            url = upstream_url,
+            headers = request.headers.raw,
+            content = await request.body()
         )
-        return response
+        return Response(
+            content = response.content,
+            status_code = response.status_code,
+            headers = response.headers
+        )
+    
