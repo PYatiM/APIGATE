@@ -6,3 +6,13 @@ redis
 httpx
 prometheus-client
 jinja2
+python-jose
+openapi-core
+PyYAML
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-exporter-otlp-proto-http
+opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-logging
+python-multipart
+pydantic-settings
