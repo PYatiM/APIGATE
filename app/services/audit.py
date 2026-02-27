@@ -1,21 +1,11 @@
 import logging
-import time
-from app.services.metrics import REQUEST_COUNT,request
-from app.services.stats import increment_requests
 
-increment_requests()
-REQUEST_COUNT.labels(request.method, request.url.path).inc()
-logger = logging.getLogger("gateway.audit")
-logging.basicConfig(level=logging.INFO)
+from app.services.metrics import AUDIT_EVENTS_TOTAL, REQUEST_COUNT
+from typing import Any
+
+logger = logging.getLogger("audit")
 
 
-def emit_audit_event(request, status_code):
-    logger.info(
-        {
-            "timestamp": time.time(),
-            "path": request.url.path,
-            "method": request.method,
-            "client": request.client.host if request.client else None,
-            "status": status_code,
-        }
-    )
+def emit_audit_event(event_type: str, payload: dict[str, Any]) -> None:
+    AUDIT_EVENTS_TOTAL.labels(event_type=event_type).inc()
+    logger.info("audit_event", extra={"event_type": event_type, "payload": payload})
