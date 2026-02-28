@@ -18,7 +18,7 @@ This project is designed to demonstrate secure gateway architecture principles s
 
 Client → Gateway → Middleware Stack → Upstream Service
 
-## Middleware order:
+## Middleware order
 
 - OpenAPI validation
 - Rate limiting
@@ -38,7 +38,7 @@ Client → Gateway → Middleware Stack → Upstream Service
 Copy:
     cp .env.example .env
 
-### Minimum required fields:
+### Minimum required fields
 
     AUTH_REQUIRED=true
     OAUTH2_JWT_SECRET=devsecret
@@ -77,7 +77,7 @@ Run with TLS:
 ## Authentication
 
 The gateway expects:
-    Authorization: Bearer <JWT>
+    Authorization: Bearer <YOUR_JWT_TOKEN>
 
 For local development only:
     POST /auth/token
