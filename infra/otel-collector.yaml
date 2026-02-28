@@ -6,9 +6,13 @@ receivers:
 
 exporters:
   logging:
+    loglevel: info
 
 service:
   pipelines:
     logs:
+      receivers: [otlp]
+      exporters: [logging]
+    traces:
       receivers: [otlp]
       exporters: [logging]
