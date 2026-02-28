@@ -1,13 +1,84 @@
-<html>
-<head><title>Gateway Dashboard</title></head>
-<body>
-<h1>Secure API Gateway</h1>
-<div id="stats"></div>
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Secure Api Gateway Dashboard</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+        <link rel="stylesheet" href="/static/dashboard.css" />
+    </head>
+    <body>
+        <div class="app">
+      <header class="header">
+        <div>
+          <p class="eyebrow">Secure API Gateway</p>
+          <h1>Operational Dashboard</h1>
+          <p class="subtitle">Live gateway posture, rate limiting, and audit telemetry.</p>
+        </div>
+        <div class="status" id="statusBadge">Connecting</div>
+      </header>
 
-<script>
-fetch("/stats").then(r=>r.json()).then(data=>{
-    document.getElementById("stats").innerText = "Requests: " + data.requests;
-});
-</script>
-</body>
+      <section class="grid">
+        <article class="card">
+          <h3>Requests</h3>
+          <p class="metric" id="requestsTotal">0</p>
+          <p class="meta" id="uptime">Uptime 0s</p>
+        </article>
+        <article class="card">
+          <h3>Errors</h3>
+          <p class="metric" id="errorsTotal">0</p>
+          <p class="meta">5xx responses</p>
+        </article>
+        <article class="card">
+          <h3>Rate Limited</h3>
+          <p class="metric" id="rateLimitedTotal">0</p>
+          <p class="meta">Policy enforcement</p>
+        </article>
+        <article class="card">
+          <h3>Latency P95</h3>
+          <p class="metric" id="latencyP95">0 ms</p>
+          <p class="meta" id="latencyAvg">Avg 0 ms</p>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="card wide">
+          <h3>Policy Summary</h3>
+          <div class="pill-row">
+            <span class="pill" id="authRequired">Auth required</span>
+            <span class="pill" id="openapiEnabled">OpenAPI validation</span>
+            <span class="pill" id="rateLimit">Rate limit</span>
+          </div>
+          <div class="config">
+            <div>
+              <span class="label">Rate limit</span>
+              <span class="value" id="rateLimitValue">-</span>
+            </div>
+            <div>
+              <span class="label">Backend</span>
+              <span class="value" id="rateLimitBackend">-</span>
+            </div>
+          </div>
+        </article>
+        <article class="card wide">
+          <h3>Audit Trail</h3>
+          <p class="meta">Audit events are streamed via OpenTelemetry to your SIEM collector.</p>
+          <div class="audit-box">
+            <code id="auditPreview">Waiting for data...</code>
+          </div>
+        </article>
+      </section>
+
+      <footer class="footer">
+        <span>Auto-refresh every 5 seconds.</span>
+        <span id="lastUpdated">Last update: --</span>
+      </footer>
+    </div>
+
+    <script>window.__DASHBOARD_KEY__ = "{{dashboard_key}}"</script>
+    <script src="/static/dashboard.js"></script>
+
+    </body>
 </html>
