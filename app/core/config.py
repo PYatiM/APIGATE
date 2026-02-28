@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os 
+
 from pydantic import AnyHttpUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -23,7 +25,7 @@ class Settings(BaseSettings):
     oauth2_token_url: str = "/auth/token"
     oauth2_issuer: str = "secure-gateway"
     oauth2_audience: str = "secure-gateway-clients"
-    oauth2_jwt_secret: str = "ww34d2d3c235v315775wdd756d35f5m478c38nt384nf34t8634t9"
+    oauth2_jwt_secret: str = os.getenv("OAUTH2_JWT_SECRET")
     oauth2_jwt_algorithm: str = "HS256"
     oauth2_leeway_seconds: int = 30
 
@@ -40,7 +42,7 @@ class Settings(BaseSettings):
     otel_traces_enabled: bool = True
 
     dashboard_enabled: bool = True
-    dashboard_api_key: str = "6td468t9h1d789yhd479y978y3427nyt2o3479yf98yp09uo232m18p0"
+    dashboard_api_key: str = os.getenv("DASHBOARD_API_KEY")
 
     model_config = SettingsConfigDict(
         env_file=".env",
