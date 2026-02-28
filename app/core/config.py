@@ -5,6 +5,11 @@ import os
 from pydantic import AnyHttpUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+JWT_SECRET = os.getenv("OAUTH_JWT_SECRET")
+DASHBOARD_API= os.getenv("DASHBOARD_API_KEY")
+
+if not JWT_SECRET or JWT_SECRET == "change_this_in_production" or DASHBOARD_API == "change_this_in_production" or not DASHBOARD_API:
+    raise RuntimeError("OAUTH_JWT_SECRET and DASHBOARD_API_KEY must be set to secure values.")
 
 class Settings(BaseSettings):
     app_name: str = "Secure API Gateway"
@@ -25,7 +30,7 @@ class Settings(BaseSettings):
     oauth2_token_url: str = "/auth/token"
     oauth2_issuer: str = "secure-gateway"
     oauth2_audience: str = "secure-gateway-clients"
-    oauth2_jwt_secret: str = os.getenv("OAUTH2_JWT_SECRET")
+    oauth2_jwt_secret: str = os.getenv("OAUTH_JWT_SECRET")
     oauth2_jwt_algorithm: str = "HS256"
     oauth2_leeway_seconds: int = 30
 
