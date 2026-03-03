@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Secure API Gateway Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/console.css" />
+  </head>
+  <body>
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+
+    <div class="shell">
+      <header class="topbar reveal">
+        <div>
+          <p class="kicker">Gateway Console</p>
+          <h1>{{app_name}}</h1>
+          <p class="subhead">Single place to navigate docs, health, dashboard, and test API routes.</p>
+        </div>
+        <div class="health-pill" id="healthBadge">Checking health...</div>
+      </header>
+
+      <nav class="quick-nav reveal delay-1">
+        <a href="/docs" target="_blank" rel="noreferrer">OpenAPI Docs</a>
+        <a href="/metrics" target="_blank" rel="noreferrer">Prometheus Metrics</a>
+        <a href="/health" target="_blank" rel="noreferrer">Health Endpoint</a>
+        <a href="/dashboard" id="dashboardLink" target="_blank" rel="noreferrer">Operational Dashboard</a>
+      </nav>
+
+      <main class="layout">
+        <section class="panel reveal delay-2">
+          <h2>Access Setup</h2>
+          <label for="tokenInput">Bearer token</label>
+          <input id="tokenInput" type="text" placeholder="Paste JWT token" />
+
+          <label for="dashboardKeyInput">Dashboard key</label>
+          <input id="dashboardKeyInput" type="text" placeholder="Used for /stats and /dashboard" />
+
+          <div class="button-row">
+            <button id="saveAccess" type="button">Save Access Data</button>
+            <button id="tokenHelper" type="button">Get Dev Token</button>
+          </div>
+          <p class="hint" id="accessHint">No access data saved yet.</p>
+        </section>
+
+        <section class="panel reveal delay-3">
+          <h2>Gateway Snapshot</h2>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span>Requests</span>
+              <strong id="requestsValue">-</strong>
+            </div>
+            <div class="stat-card">
+              <span>Errors</span>
+              <strong id="errorsValue">-</strong>
+            </div>
+            <div class="stat-card">
+              <span>Rate Limited</span>
+              <strong id="rateLimitedValue">-</strong>
+            </div>
+            <div class="stat-card">
+              <span>P95 Latency</span>
+              <strong id="latencyValue">-</strong>
+            </div>
+          </div>
+          <p class="hint" id="statsHint">Press refresh to load current stats.</p>
+          <button id="refreshStats" type="button">Refresh Snapshot</button>
+        </section>
+
+        <section class="panel wide reveal delay-4">
+          <h2>API Runner</h2>
+          <form id="requestForm" class="request-form">
+            <div class="field-grid">
+              <div>
+                <label for="methodInput">Method</label>
+                <select id="methodInput">
+                  <option>GET</option>
+                  <option selected>POST</option>
+                  <option>PUT</option>
+                  <option>PATCH</option>
+                  <option>DELETE</option>
+                </select>
+              </div>
+              <div>
+                <label for="pathInput">Path</label>
+                <input id="pathInput" type="text" value="/v1/echo" />
+              </div>
+              <div>
+                <label for="contentTypeInput">Content-Type</label>
+                <select id="contentTypeInput">
+                  <option selected>application/json</option>
+                  <option>text/plain</option>
+                </select>
+              </div>
+            </div>
+
+            <label for="bodyInput">Body</label>
+            <textarea id="bodyInput" rows="8">{"hello":"world"}</textarea>
+
+            <div class="button-row">
+              <button type="submit">Send Request</button>
+              <button id="clearResponse" type="button" class="ghost">Clear Response</button>
+            </div>
+          </form>
+
+          <div class="response-meta" id="responseMeta">No request sent yet.</div>
+          <pre id="responseOutput" class="response">Response will appear here.</pre>
+        </section>
+
+        <section class="panel wide reveal delay-5">
+          <h2>Quick Calls</h2>
+          <div class="chip-list" id="quickCalls">
+            <button class="chip" data-method="GET" data-path="/health">GET /health</button>
+            <button class="chip" data-method="GET" data-path="/stats">GET /stats</button>
+            <button class="chip" data-method="POST" data-path="/auth/token">POST /auth/token</button>
+            <button class="chip" data-method="POST" data-path="/v1/echo">POST /v1/echo</button>
+            <button class="chip" data-method="POST" data-path="/v1/orders">POST /v1/orders</button>
+            <button class="chip" data-method="POST" data-path="/v1/users">POST /v1/users</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/console.js"></script>
+  </body>
+</html>
