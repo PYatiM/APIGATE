@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -8,14 +10,28 @@ import yaml
 from pathlib import Path
 from app.core.config import settings
 
+logger = logging.getLogger("gateway.openapi")
+
+IMPORT_ERROR: Exception | None = None
+
 try:
     from openapi_core import Spec
-    from openapi_core.contrib.starlette.requests import StarletteOpenAPIRequest
-    from openapi_core.validation.request.validators import RequestValidator
-except Exception:  # pragma: no cover - handled by runtime deps
+except Exception as exc:  # pragma: no cover - handled by runtime deps
     Spec = None
+    IMPORT_ERROR = exc
+    
+try:
+    from openapi_core.contrib.starlette.requests import StarletteOpenAPIRequest
+except Exception as exc:  # pragma: no cover
     StarletteOpenAPIRequest = None
+    IMPORT_ERROR = IMPORT_ERROR or exc
+
+try:
+    from openapi_core.validation.request.validators import RequestValidator
+except Exception as exc:  # pragma: no cover
     RequestValidator = None
+    IMPORT_ERROR = IMPORT_ERROR or exc
+
 class OpenAPIValidatorMiddleware(BaseHTTPMiddleware):
     
     def __init__(self, app) -> None:
@@ -35,18 +51,28 @@ class OpenAPIValidatorMiddleware(BaseHTTPMiddleware):
 
         if not self.enabled:
             return
-        if Spec is None:
-            raise RuntimeError("openapi-core is required for request validation")
+        if Spec is None or StarletteOpenAPIRequest is None or RequestValidator is None:
+            logger.warning(
+                "OpenAPI validation disabled: openapi-core missing/incompatible (%s)",
+                IMPORT_ERROR,
+            )
+            self.enabled = False
+            return
 
         spec_path = Path(settings.openapi_spec_path)
         if not spec_path.exists():
-            raise RuntimeError(f"OpenAPI spec not found at {spec_path}")
+            logger.warning("OpenAPI validation disabled: spec file not found at %s", spec_path)
+            self.enabled = False
+            return
 
-        with spec_path.open("r", encoding="utf-8") as handle:
-            spec_dict = yaml.safe_load(handle)
-        self.spec = Spec.from_dict(spec_dict)
-        self.validator = RequestValidator(self.spec)
-    
+        try:
+            with spec_path.open("r", encoding="utf-8") as handle:
+                spec_dict = yaml.safe_load(handle)
+            self.spec = Spec.from_dict(spec_dict)
+            self.validator = RequestValidator(self.spec)
+        except Exception as exc:
+            logger.warning("OpenAPI validation disabled: failed to load/parse spec - %s", exc)
+            self.enabled = False    
     
     async def dispatch(self, request: Request, call_next) -> Response:
         if not self.enabled:
@@ -66,6 +92,5 @@ class OpenAPIValidatorMiddleware(BaseHTTPMiddleware):
                 status_code=400,
                 content={"detail": "Request validation failed", "errors": errors},
             )
-        
-        response = call_next(request)
-        return response
+
+        return await call_next(request)

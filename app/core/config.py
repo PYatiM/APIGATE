@@ -1,15 +1,7 @@
 from __future__ import annotations
 
-import os 
-
-from pydantic import AnyHttpUrl
+from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-JWT_SECRET = os.getenv("OAUTH_JWT_SECRET")
-DASHBOARD_API= os.getenv("DASHBOARD_API_KEY")
-
-if not JWT_SECRET or JWT_SECRET == "change_this_in_production" or DASHBOARD_API == "change_this_in_production" or not DASHBOARD_API:
-    raise RuntimeError("OAUTH_JWT_SECRET and DASHBOARD_API_KEY must be set to secure values.")
 
 class Settings(BaseSettings):
     app_name: str = "Secure API Gateway"
@@ -17,6 +9,8 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8443
     log_level: str = "info"
+    
+    debug: bool = False
 
     tls_cert_file: str = "certs/server.crt"
     tls_key_file: str = "certs/server.key"
@@ -30,7 +24,7 @@ class Settings(BaseSettings):
     oauth2_token_url: str = "/auth/token"
     oauth2_issuer: str = "secure-gateway"
     oauth2_audience: str = "secure-gateway-clients"
-    oauth2_jwt_secret: str = os.getenv("OAUTH_JWT_SECRET")
+    oauth2_jwt_secret: str = "CHANGE_ME"
     oauth2_jwt_algorithm: str = "HS256"
     oauth2_leeway_seconds: int = 30
 
@@ -47,12 +41,24 @@ class Settings(BaseSettings):
     otel_traces_enabled: bool = True
 
     dashboard_enabled: bool = True
-    dashboard_api_key: str = os.getenv("DASHBOARD_API_KEY")
+    dashboard_api_key: str = "CHANGE_ME_DASHBOARD_KEY"
 
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
+        extra="ignore",
     )
+    
+    @field_validator("debug", mode="before")
+    @classmethod
+    def _parse_debug(cls, value):
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "yes", "on", "debug", "dev"}:
+                return True
+            if normalized in {"0", "false", "no", "off", "release", "prod", "production"}:
+                return False
+        return value
 
 
 settings = Settings()

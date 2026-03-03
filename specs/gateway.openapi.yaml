@@ -93,13 +93,13 @@ paths:
               $ref: '#/components/schemas/EchoRequest'
       responses:
         '200':
-          description: OK
+          description: Echo response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/EchoResponse'
         '400':
-          description: Bad Request
+          description: Invalid Request
           content:
             application/json:
               schema:

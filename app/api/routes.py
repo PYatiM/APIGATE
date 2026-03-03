@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import parse_qs
 
 from fastapi import APIRouter, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
-from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 
 from app.services.stats import stats
@@ -44,6 +44,30 @@ def _require_dashboard_key(request: Request) -> None:
     if key != settings.dashboard_api_key:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid dashboard key")
 
+async def _read_username_from_request(request: Request) -> str | None:
+    content_type = request.headers.get("content-type", "").lower()
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+        except Exception:
+            return None
+        username = body.get("username") if isinstance(body, dict) else None
+        return str(username).strip() if username else None
+
+    raw_body = (await request.body()).decode("utf-8", errors="ignore")
+    parsed = parse_qs(raw_body)
+    username_values = parsed.get("username", [])
+    if not username_values:
+        return None
+    username = username_values[0].strip()
+    return username or None
+
+
+@router.get("/", response_class=HTMLResponse)
+async def home() -> HTMLResponse:
+    html_path = Path("app/templates/index.html")
+    html = html_path.read_text(encoding="utf-8")
+    return HTMLResponse(html.replace("{{app_name}}", settings.app_name))
 
 @router.get("/health")
 async def health() -> dict:
@@ -54,10 +78,16 @@ async def health() -> dict:
 
 
 @router.post(settings.oauth2_token_url)
-async def issue_token(form_data: OAuth2PasswordRequestForm = Depends()):
+async def issue_token(request: Request):
     if settings.env == "prod":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token endpoint disabled")
-    token = issue_dev_token(form_data.username, scopes=["gateway:access"])
+    username = await _read_username_from_request(request)
+    if not username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="username is required in JSON body or form data",
+        )
+    token = issue_dev_token(username, scopes=["gateway:access"])
     return {"access_token": token, "token_type": "bearer"}
 
 

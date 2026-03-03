@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 
 from app.services.metrics import AUDIT_EVENTS_TOTAL, REQUEST_COUNT

@@ -1,6 +1,17 @@
 version: "3.8"
-
 services:
+  app:
+    build: .
+    container_name: secure_api_gateway-app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - otel-collector
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
   redis:
     image: redis:7
     ports:
@@ -14,4 +25,3 @@ services:
     ports:
       - "4317:4317"
       - "4318:4318"
-

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Iterable
-from wsgiref import headers
 
 import httpx
 from fastapi import Request
