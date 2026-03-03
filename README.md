@@ -18,25 +18,61 @@ This project is designed to demonstrate secure gateway architecture principles s
 
 Client → Gateway → Middleware Stack → Upstream Service
 
-## Middleware order
+## How to run
+Use this exact sequence from scratch in PowerShell.
 
-- OpenAPI validation
-- Rate limiting
-- JWT authentication
-- Proxy to upstream
-- Audit logging + metrics
+### Setup
+```bash
+cd "F:\WORK\NOT YET\Secure_Api_Gateway"
+Copy-Item .env.example .env -Force
+```
+Edit .env and set at least:
+- OAUTH2_JWT_SECRET
+- DASHBOARD_API_KEY
+- Optional: set PORT=8000 to match Docker defaults
 
-## Quick Start (Local Setup)
+### Run with Docker (Docker and Docker compose required)
+``` bash
+docker compose down --remove-orphans
+docker compose build --no-cache app
+docker compose up -d
+docker compose logs -f app
+```
+Open:
+- Console UI: http://localhost:8000/
+- Health: http://localhost:8000/health
+- Docs: http://localhost:8000/docs
 
-1️⃣ Clone & Setup Environment
-    python -m venv .venv
-    source .venv/bin/activate   # Windows: .venv\Scripts\activate
-    pip install -r requirements.txt
+## Quick test
 
-2️⃣ Configure Environment
+1) **Health**
+```bash
+Invoke-RestMethod -Method Get -Uri "http://localhost:8000/health"
+```
+2) **Get dev token (works when ENV != prod)**
+```bash
+$token = (Invoke-RestMethod -Method Post -Uri "http://localhost:8000/auth/token" -ContentType "application/json" -Body '{"username":"dev-user"}').access_token
+```
 
-Copy:
-    cp .env.example .env
+3) **Call protected API**
+```bash
+Invoke-RestMethod -Method Post -Uri "http://localhost:8000/v1/echo" -Headers @{ Authorization = "Bearer $token" } -ContentType "application/json" -Body '{"hello":"world"}'
+```
+Dashboard:
+- http://localhost:8000/dashboard?dashboard_key=<your DASHBOARD_API_KEY>
+
+4) **Run tests**
+```bash
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements-dev.txt
+pytest -q
+```
+
+5) **Stop**
+```bash
+docker compose down
+```
 
 ### Minimum required fields
 
@@ -45,34 +81,20 @@ Copy:
     REDIS_URL=redis://localhost:6379
     UPSTREAM_BASE_URL=http://localhost:9000
 
-3️⃣ Start Redis (Required for rate limiting)
-    docker-compose up -d
+**Start Redis (Required for rate limiting)**
+```bash
+docker-compose up -d
+```
 
-4️⃣ Run the Gateway
-    uvicorn app.main:app --host 0.0.0.0 --port 8000
+**Run the Gateway**
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
 
-Access:
+**Access:**
 
     http://localhost:8000
     
-## TLS (Optional for Local)
-
-Generate self-signed cert:
-
-    mkdir certs
-    openssl req -x509 -nodes -newkey rsa:2048 \
-    -keyout certs/server.key \
-    -out certs/server.crt \
-    -days 365 \
-    -subj "/CN=localhost"
-
-Run with TLS:
-
-    uvicorn app.main:app \
-    --host 0.0.0.0 \
-    --port 8443 \
-    --ssl-keyfile certs/server.key \
-    --ssl-certfile certs/server.crt
     
 ## Authentication
 
@@ -110,22 +132,6 @@ Fallback:
 
     RATE_LIMIT_BACKEND=local
 
-## Observability (Optional but Recommended)
-
-Integrated with OpenTelemetry.
-
-Set:
-
-    OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-    OTEL_TRACES_ENABLED=true
-    OTEL_LOGS_ENABLED=true
-
-Start local collector:
-
-    docker-compose up -d
-
-- Telemetry can be forwarded to SIEM, Grafana, Datadog, etc.
-
 ## Metrics & Dashboard
 
 Metrics endpoint:
@@ -140,9 +146,12 @@ If protected:
 
     /dashboard?dashboard_key=YOUR_KEY
 
-## Testing
 
-Run:
-    pytest
+## Images
 
-    (might face some issues -> Redis not running - {Gateway falls back to local limiter.}, JWT failing - {Check secret, issuer, audience.}, OpenAPI errors - {Verify gateway.openapi.yaml schema}, OTLP export errors - {Confirm collector endpoint} )
+### Fasr API Dashboard
+![img](img/1.png)
+
+### Custom Interface
+![img](img/2.png)
+
