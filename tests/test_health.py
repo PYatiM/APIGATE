@@ -9,6 +9,8 @@ def test_health():
     assert response.json()["status"] == "ok"
 
 def test_echo_ok():
-    response = client.post("/echo", json={"message": "Hello, World!"})
+    response = client.post("/v1/echo", json={"message": "Hello, World!"})
     assert response.status_code == 200
-    assert response.json()["message"] == "Hello, World!"
+    data = response.json()
+    assert data["received"]["message"] == "Hello, World!"
+    assert "principal" in data
