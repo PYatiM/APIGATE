@@ -1,20 +1,23 @@
 # Use slim Python image
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+#---------DURING THE RUNTIME---------------------------------------
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1
-
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
-
-RUN pip install --no-cache-dir -r requirements.txt
-
+#copy only the install packages from builder and then the application code
+COPY --from=builder /install /usr/local
 COPY . .
+
+# -> Non root user
+RUN useradd -m -s /bin/false appuser && chown -R appuser:appuser /app 
+USER appuser
 
 EXPOSE 8000
 
