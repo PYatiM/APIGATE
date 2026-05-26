@@ -1,155 +1,344 @@
-# Secure api Gateway (APIGATE)
+# APIGATE — Secure API Gateway
 
-Production-oriented API Gateway built with FastAPI, implementing authentication, request validation, rate limiting, structured audit logging, metrics exposure, and observability via OpenTelemetry.
+A production-oriented API Gateway built with FastAPI, implementing JWT authentication,
+OpenAPI request validation, Redis-backed rate limiting, structured audit logging,
+Prometheus metrics, and distributed tracing via OpenTelemetry.
 
-This project is designed to demonstrate secure gateway architecture principles suitable for backend and security engineering roles.
+Designed to demonstrate secure gateway architecture principles applicable to backend
+and security engineering roles.
+
+---
 
 ## What It Does
 
-- Verifies OAuth2 JWT tokens
-- Validates requests against OpenAPI spec
-- Applies rate limiting (Redis or local fallback)
-- Emits audit logs (OTLP-ready)
-- Exposes Prometheus metrics
-- Provides basic operational dashboard
-- Supports TLS
+- **JWT Authentication** — validates OAuth2 Bearer tokens on all protected routes; configurable issuer, audience, and clock leeway
+- **OpenAPI Request Validation** — validates every incoming request against a typed OpenAPI 3.0 spec before it reaches route handlers
+- **Rate Limiting** — Redis-backed sliding window rate limiter with automatic local fallback when Redis is unavailable
+- **Audit Logging** — structured JSON audit events emitted on every request; OTLP-ready for log shipping
+- **Prometheus Metrics** — request count, latency histograms, rate-limit counters exposed at `/metrics`
+- **OpenTelemetry Tracing** — distributed traces and logs exported via OTLP to a configurable collector
+- **Upstream Proxy** — forwards authenticated requests to a configurable upstream service with hop-by-hop header filtering and graceful error handling
+- **Security Headers** — `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, and conditional HSTS on every response
+- **Operational Dashboard** — live request stats, latency percentiles, and gateway configuration via a key-protected dashboard UI
+- **Mock Upstream Mode** — full gateway functionality without a real upstream service; useful for development and demos
 
-## Architecture (Simple Show)
+---
 
-Client → Gateway → Middleware Stack → Upstream Service
+## Architecture
 
-## How to run
-Use this exact sequence from scratch in PowerShell.
-
-### Setup
-```bash
-cd "F:\WORK\NOT YET\Secure_Api_Gateway"
-Copy-Item .env.example .env -Force
 ```
-Edit .env and set at least:
-- OAUTH2_JWT_SECRET
-- DASHBOARD_API_KEY
-- Optional: set PORT=8000 to match Docker defaults
+Client Request
+      ↓
+AuditMiddleware          (assigns request-id, records latency + metrics, emits audit event)
+      ↓
+RateLimitMiddleware      (Redis or local sliding window; returns 429 if exceeded)
+      ↓
+OpenAPIRequestValidationMiddleware  (validates against gateway.openapi.yaml; returns 400 if invalid)
+      ↓
+Route Handler            (JWT auth via Depends; Pydantic model validation)
+      ↓
+Proxy / Mock Upstream    (forwards to upstream_base_url or returns mock response)
+      ↓
+Response + Security Headers
+```
 
-### Run with Docker (Docker and Docker compose required)
-``` bash
-docker compose down --remove-orphans
+---
+
+## Project Structure
+
+```
+APIGATE/
+├── app/
+│   ├── api/
+│   │   └── routes.py              # All route definitions, token endpoint, dashboard
+│   ├── core/
+│   │   ├── config.py              # Pydantic Settings — all configuration via env vars
+│   │   ├── security.py            # JWT validation, Principal dataclass, dev token issuance
+│   │   └── telemetry.py           # OpenTelemetry setup (traces + logs); graceful if missing
+│   ├── middleware/
+│   │   ├── audit.py               # Request timing, Prometheus counters, audit event emission, security headers
+│   │   ├── rate_limit.py          # Redis and local rate limiter with async locking
+│   │   └── openapi_validator.py   # OpenAPI spec-based request validation
+│   ├── services/
+│   │   ├── audit.py               # Structured JSON audit log emission
+│   │   ├── metrics.py             # Prometheus Counter and Histogram definitions
+│   │   ├── proxy.py               # Async upstream forwarding with error handling
+│   │   ├── redis.py               # Redis client init and teardown
+│   │   └── stats.py               # In-memory approximate request statistics
+│   ├── static/                    # Frontend assets (CSS, JS)
+│   ├── templates/                 # Jinja-style HTML templates (index, dashboard)
+│   └── main.py                    # App factory, middleware registration, lifecycle events
+├── specs/
+│   └── gateway.openapi.yaml       # OpenAPI 3.0 contract used for request validation
+├── infra/
+│   └── otel-collector.yaml        # OpenTelemetry Collector configuration
+├── tests/
+│   ├── conftest.py                # Test environment setup (disables auth, Redis, OTel)
+│   └── test_health.py             # Health and echo endpoint tests
+├── .env.example                   # Template for environment configuration
+├── docker-compose.yml             # Full stack: gateway + Redis + OTel Collector
+├── Dockerfile                     # Multi-stage build; non-root runtime user
+└── requirements.txt               # Pinned production dependencies
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Docker and Docker Compose
+- Python 3.11+ (for local development without Docker)
+
+---
+
+### Quick Start with Docker (Recommended)
+
+**1. Clone the repository**
+```bash
+git clone https://github.com/PYatiM/APIGATE.git
+cd APIGATE
+```
+
+**2. Create your environment file**
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set at minimum:
+```
+OAUTH2_JWT_SECRET=your-strong-secret-here
+DASHBOARD_API_KEY=your-dashboard-key-here
+```
+
+**3. Build and start the full stack**
+```bash
 docker compose build --no-cache app
 docker compose up -d
 docker compose logs -f app
 ```
-Open:
-- Console UI: http://localhost:8000/
-- Health: http://localhost:8000/health
-- Docs: http://localhost:8000/docs
 
-## Quick test
+**4. Verify it is running**
 
-1) **Health**
-```bash
-Invoke-RestMethod -Method Get -Uri "http://localhost:8000/health"
-```
-2) **Get dev token (works when ENV != prod)**
-```bash
-$token = (Invoke-RestMethod -Method Post -Uri "http://localhost:8000/auth/token" -ContentType "application/json" -Body '{"username":"dev-user"}').access_token
-```
+| Endpoint | URL |
+|----------|-----|
+| Console UI | http://localhost:8000/ |
+| Health check | http://localhost:8000/health |
+| API docs | http://localhost:8000/docs |
+| Prometheus metrics | http://localhost:8000/metrics |
+| Dashboard | http://localhost:8000/dashboard?dashboard_key=`<your key>` |
 
-3) **Call protected API**
-```bash
-Invoke-RestMethod -Method Post -Uri "http://localhost:8000/v1/echo" -Headers @{ Authorization = "Bearer $token" } -ContentType "application/json" -Body '{"hello":"world"}'
-```
-Dashboard:
-- http://localhost:8000/dashboard?dashboard_key=<your DASHBOARD_API_KEY>
+---
 
-4) **Run tests**
+### Local Development (Without Docker)
+
+**1. Create and activate a virtual environment**
 ```bash
 python -m venv .venv
+# Linux/macOS:
+source .venv/bin/activate
+# Windows:
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements-dev.txt
-pytest -q
 ```
 
-5) **Stop**
+**2. Install dependencies**
 ```bash
-docker compose down
+pip install -r requirements.txt
 ```
 
-### Minimum required fields
-
-    AUTH_REQUIRED=true
-    OAUTH2_JWT_SECRET=devsecret
-    REDIS_URL=redis://localhost:6379
-    UPSTREAM_BASE_URL=http://localhost:9000
-
-**Start Redis (Required for rate limiting)**
+**3. Configure environment**
 ```bash
-docker-compose up -d
+cp .env.example .env
+# Edit .env with your values
 ```
 
-**Run the Gateway**
+**4. Start Redis** (required for Redis-backed rate limiting)
+```bash
+docker compose up -d redis
+```
+
+**5. Run the gateway**
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-**Access:**
+---
 
-    http://localhost:8000
-    
-    
-## Authentication
+## API Usage
 
-The gateway expects:
-    Authorization: Bearer <YOUR_JWT_TOKEN>
+### Step 1 — Obtain a Development Token
 
-For local development only:
-    POST /auth/token
+> The `/auth/token` endpoint is available in non-production environments only
+> (`ENV != prod`). In production, integrate your own identity provider.
 
-Example:
+```bash
+# JSON body
+curl -X POST http://localhost:8000/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"username": "dev-user"}'
 
-    curl -X POST http://localhost:8000/auth/token \
-    -d "username=dev-user&password=dev"
+# Form data also accepted
+curl -X POST http://localhost:8000/auth/token \
+  -d "username=dev-user"
+```
 
-Use returned token in protected routes.
+Response:
+```json
+{
+  "access_token": "eyJ...",
+  "token_type": "bearer"
+}
+```
 
-## OpenAPI Validation
+### Step 2 — Call a Protected Route
 
-Defined in:
-    specs/gateway.openapi.yaml
+```bash
+export TOKEN="eyJ..."   # paste your token
 
-To disable validation:
-    OPENAPI_VALIDATE_REQUESTS=false
+# Echo endpoint
+curl -X POST http://localhost:8000/v1/echo \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"hello": "world"}'
 
-## Rate Limiting
+# Create an order
+curl -X POST http://localhost:8000/v1/orders \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"customer_id": "cust-001", "items": [{"sku": "ITEM-A", "quantity": 2}]}'
 
-Default: Redis-backed fixed window.
+# Get an order
+curl http://localhost:8000/v1/orders/order-123 \
+  -H "Authorization: Bearer $TOKEN"
+```
 
-Control with:
+### PowerShell Equivalent
 
-    RATE_LIMIT_REQUESTS=100
-    RATE_LIMIT_WINDOW_SECONDS=60
+```powershell
+# Get token
+$token = (Invoke-RestMethod -Method Post -Uri "http://localhost:8000/auth/token" `
+  -ContentType "application/json" `
+  -Body '{"username":"dev-user"}').access_token
 
-Fallback:
+# Call protected endpoint
+Invoke-RestMethod -Method Post -Uri "http://localhost:8000/v1/echo" `
+  -Headers @{ Authorization = "Bearer $token" } `
+  -ContentType "application/json" `
+  -Body '{"hello":"world"}'
+```
 
-    RATE_LIMIT_BACKEND=local
+---
 
-## Metrics & Dashboard
+## Configuration
 
-Metrics endpoint:
+All configuration is via environment variables (or `.env` file). Copy `.env.example`
+to get started.
 
-    GET /metrics
+### Core Settings
 
-Dashboard:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `APP_NAME` | `Secure API Gateway` | Application name |
+| `ENV` | `dev` | Environment (`dev` / `prod`). `prod` disables token endpoint. |
+| `HOST` | `0.0.0.0` | Bind address |
+| `PORT` | `8443` | Bind port |
+| `LOG_LEVEL` | `info` | Logging level |
 
-    GET /dashboard
+### Authentication
 
-If protected:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AUTH_REQUIRED` | `true` | Enable/disable JWT enforcement |
+| `OAUTH2_JWT_SECRET` | — | **Required.** Secret key for HS256 JWT signing |
+| `OAUTH2_JWT_ALGORITHM` | `HS256` | JWT signing algorithm |
+| `OAUTH2_ISSUER` | `secure-gateway` | Expected JWT issuer (`iss` claim) |
+| `OAUTH2_AUDIENCE` | `secure-gateway-clients` | Expected JWT audience (`aud` claim) |
+| `OAUTH2_TOKEN_URL` | `/auth/token` | Dev token endpoint path |
+| `OAUTH2_LEEWAY_SECONDS` | `30` | Clock skew tolerance for token validation |
 
-    /dashboard?dashboard_key=YOUR_KEY
+### Rate Limiting
 
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RATE_LIMIT_BACKEND` | `redis` | `redis` or `local` |
+| `REDIS_URL` | `redis://localhost:6379/0` | Redis connection URL |
+| `RATE_LIMIT_REQUESTS` | `100` | Requests allowed per window |
+| `RATE_LIMIT_WINDOW_SECONDS` | `60` | Window duration in seconds |
 
-## Images
+### Upstream Proxy
 
-### Fasr API Dashboard
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `UPSTREAM_BASE_URL` | — | Target upstream service URL |
+| `MOCK_UPSTREAM` | `true` | Return mock responses instead of forwarding |
+
+### OpenAPI Validation
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OPENAPI_SPEC_PATH` | `specs/gateway.openapi.yaml` | Path to OpenAPI spec |
+| `OPENAPI_VALIDATE_REQUESTS` | `true` | Enable/disable request validation |
+
+### Observability
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OTEL_SERVICE_NAME` | `secure-api-gateway` | Service name in traces/logs |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318` | OTel Collector endpoint |
+| `OTEL_TRACES_ENABLED` | `true` | Enable distributed tracing |
+| `OTEL_LOGS_ENABLED` | `true` | Enable OTel log export |
+
+### Dashboard
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DASHBOARD_ENABLED` | `true` | Enable the dashboard route |
+| `DASHBOARD_API_KEY` | — | **Required.** Key to protect dashboard access |
+
+---
+
+## Running Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest -v
+```
+
+Tests run with auth disabled, local rate limiting, and OTel mocked out — no
+external services required.
+
+---
+
+## Observability Stack
+
+The `docker-compose.yml` includes a full observability stack:
+
+- **Prometheus** — scrape `/metrics` at `http://localhost:8000/metrics`
+- **OpenTelemetry Collector** — receives traces and logs via OTLP at port 4318;
+  configured in `infra/otel-collector.yaml`
+
+To add a Grafana/Jaeger backend, extend `docker-compose.yml` and point the
+collector exporters at your stack.
+
+---
+
+## Security Notes
+
+- The `/auth/token` endpoint is a **development convenience only**. Disable it in
+  production by setting `ENV=prod`.
+- JWT secrets and dashboard keys must be set via environment variables — never
+  committed to source control.
+- In production, place the gateway behind a TLS-terminating reverse proxy (nginx,
+  Caddy, AWS ALB) or configure the `TLS_CERT_FILE` / `TLS_KEY_FILE` settings for
+  direct TLS termination.
+- All responses include `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
+  `Referrer-Policy: no-referrer`, and HSTS (when running over HTTPS).
+
+---
+
+## Screenshots
+
+### Fast API Dashboard
 ![img](img/1.png)
 
 ### Custom Interface
