@@ -32,7 +32,7 @@ except Exception as exc:  # pragma: no cover
     RequestValidator = None
     IMPORT_ERROR = IMPORT_ERROR or exc
 
-class OpenAPIValidatorMiddleware(BaseHTTPMiddleware):
+class OpenAPIRequestValidatorMiddleware(BaseHTTPMiddleware):
     
     def __init__(self, app) -> None:
         super().__init__(app)
