@@ -49,6 +49,20 @@ class Settings(BaseSettings):
         extra="ignore",
     )
     
+    @model_validator(mode="after")
+    def _warn_insecure_defaults(self) -> "Settings":
+        import logging 
+        log = logging.getLogger("gateway.config")
+        if self.env in "prod":
+            if self.oauth2_jwt_secret == "CHANGE_ME":
+                raise ValueError("oauth2_jwt_secret must be set in production")
+            if self.dashboard_api_key == "CHANGE_ME_DASHBOARD_KEY":
+                raise ValueError("dashboard_api_key must be set in production")
+        else:
+            if self.oauth2_jwt_secret == "CHANGE_ME":
+                log.warning("Using default JWT secret - donot use it in production")
+        return self
+
     @field_validator("debug", mode="before")
     @classmethod
     def _parse_debug(cls, value):
