@@ -32,7 +32,7 @@ class UserCreate(BaseModel):
 
 
 def _resolve_dashboard_key(request: Request) -> str | None:
-    return request.headers.get("x-dashboard-key") or request.query_params.get("dashboard_key")
+    return request.headers.get("x-dashboard-key")
 
 
 def _require_dashboard_key(request: Request) -> None:
