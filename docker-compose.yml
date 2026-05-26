@@ -3,22 +3,35 @@ services:
   app:
     build: .
     container_name: secure_api_gateway-app
+    restart: unless-stopped
     ports:
       - "8000:8000"
+    env_file: .env
     depends_on:
-      - redis
-      - otel-collector
-    environment:
-      REDIS_URL: redis://redis:6379/0
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+      redis:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test: ["CMD","curl","-f","http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   redis:
-    image: redis:7
+    image: redis:7-alpine
+    retart: unless-stopped
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD","redis-cli","ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
+    retstart: unless-stopped
     volumes:
       - ./infra/otel-collector.yaml:/etc/otelcol/config.yaml
     command: ["--config=/etc/otelcol/config.yaml"]
