@@ -5,6 +5,7 @@ from typing import Iterable
 import httpx
 from fastapi import Request
 from fastapi.responses import Response, JSONResponse
+from httpx import TimeoutException, HTTPStatusError, RequestError
 
 from app.core.config import settings
 from app.core.security import Principal
@@ -55,15 +56,28 @@ async def forward_request(request: Request, upstream_path: str, principal: Princ
     headers["x-request-id"] = request.state.request_id
         
     body = await request.body()
-    response = await client.request(
-        request.method,
-        url,
-        params=request.query_params,
-        content=body,
-        headers=headers,
-        timeout=10.0,
-    )
-        
+    try:
+        response = await client.request(
+            request.method,
+            url,
+            params=request.query_params,
+            content=body,
+            headers=headers,
+            timeout=10.0,
+        )
+    except TimeoutException:
+        return JSONResponse(
+            status_code=504,
+            content={"detail":"Upstream timed out"},
+        )
+    except RequestError as exc:
+        logger.error("Upstream request error: %s",exc)
+        return  JSONResponse(
+            status_code=502.
+            content={"detail":"Upstream unreachable"},
+        )
+
+
     return Response(
         content = response.content,
         status_code = response.status_code,
