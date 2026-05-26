@@ -88,6 +88,9 @@ async def issue_token(request: Request):
             detail="username is required in JSON body or form data",
         )
     token = issue_dev_token(username, scopes=["gateway:access"])
+    logger.info("dev_token_issued", extra={"username": username,
+                "client_ip": request.client.host if request.client else "unknown"
+    })
     return {"access_token": token, "token_type": "bearer"}
 
 

@@ -51,7 +51,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if settings.rate_limit_backend == "redis":
             redis = getattr(request.app.state, "redis", None)
             if redis is None:
-                allowed = self.local_limiter.allow(client_id)
+                allowed = await self.local_limiter.allow(client_id)
             else:
                 allowed = await self._allow_redis(redis, client_id)
         else:
