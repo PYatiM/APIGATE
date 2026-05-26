@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time 
+import asyncio
 from collections import defaultdict
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -15,16 +16,18 @@ class LocalRateLimiter:
         self.limit = limit
         self.window_seconds = window_seconds
         self.counters: dict[tuple[str, int], int] = defaultdict(int)
+        self._lock = asyncio.Lock()
 
-    def allow(self, client_id: str) -> bool:
+    async def allow(self, client_id: str) -> bool:
         if self.limit <= 0:
             return True
-        window = int(time.time() // self.window_seconds)
-        key = (client_id, window)
-        self.counters[key] += 1
-        if len(self.counters) > 5000:
-            self._prune(window)
-        return self.counters[key] <= self.limit
+        async with self._lock:
+            window = int(time.time() // self.window_seconds)
+            key = (client_id, window)
+            self.counters[key] += 1
+            if len(self.counters) > 5000:
+                self._prune(window)
+            return self.counters[key] <= self.limit
 
     def _prune(self, current_window: int) -> None:
         old_windows = [key for key in self.counters if key[1] < current_window - 1]
