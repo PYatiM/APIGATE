@@ -20,7 +20,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    retart: unless-stopped
+    restart: unless-stopped
     ports:
       - "6379:6379"
     healthcheck:
@@ -31,7 +31,7 @@ services:
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
-    retstart: unless-stopped
+    restart: unless-stopped
     volumes:
       - ./infra/otel-collector.yaml:/etc/otelcol/config.yaml
     command: ["--config=/etc/otelcol/config.yaml"]

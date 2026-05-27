@@ -73,7 +73,7 @@ async def forward_request(request: Request, upstream_path: str, principal: Princ
     except RequestError as exc:
         logger.error("Upstream request error: %s",exc)
         return  JSONResponse(
-            status_code=502.
+            status_code=502,
             content={"detail":"Upstream unreachable"},
         )
 
