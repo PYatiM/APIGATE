@@ -8,7 +8,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.services.audit import emit_audit_event
-from app.services.metrics import REQUESTS_TOTAL, REQUEST_LATENCY_MS
+from app.services.metrics import REQUESTS_TOTAL, REQUESTS_LATENCY_MS
 from app.services.stats import stats
 
 
@@ -35,7 +35,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
             path=request.url.path,
             status=str(response.status_code),
         ).inc()
-        REQUEST_LATENCY_MS.labels(
+        REQUESTS_LATENCY_MS.labels(
             method=request.method,
             path=request.url.path,
         ).observe(duration_ms)

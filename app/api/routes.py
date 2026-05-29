@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +15,8 @@ from app.core.security import get_current_principal, issue_dev_token, Principal
 from app.services.proxy import forward_request
 
 router = APIRouter()
+
+logger = logging.getLogger("gateway.routes")
 
 class OrderItem(BaseModel):
     sku: str = Field(..., min_length=3, max_length=64)
