@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time 
 import asyncio
+import uuid
 from collections import defaultdict
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -74,12 +75,21 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def _allow_redis(self, redis, client_id: str) -> bool:
         if settings.rate_limit_requests <= 0:
             return True
-        window_key = int(time.time() // settings.rate_limit_window_seconds)
-        key = f"rl:{client_id}:{window_key}"
+        now = time.time()
+        window_start = now - settings.rate_limit_window_seconds
+        
+        key = f"rl:slide:{client_id}"
+        member = f"{now}-{uuid.uuid4().hex}" 
+        
         pipeline = redis.pipeline()
-        pipeline.incr(key, 1)
-        pipeline.expire(key, settings.rate_limit_window_seconds)
-        count, _ = await pipeline.execute()
-        return int(count) <= settings.rate_limit_requests
+        pipeline.zremrangebyscore(key, "-inf", window_start) 
+        pipeline.zadd(key, {member: now}) 
+        pipeline.zcard(key)
+        pipeline.expire(key, settings.rate_limit_window_seconds) 
+        
+        results = await pipeline.execute()
+        request_count = results[2]
+        
+        return int(request_count) <= settings.rate_limit_requests
     
     
