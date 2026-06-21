@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer,  SecurityScopes
 from jose import JWTError, jwt
 #The difference between this import and previous jwt is that this lines makes it easier to use the standard PyJWT PyJWKClient and in the previouss import its for when pyhton-jose or standard PyJWT is used
 import jwt as pyjwt
@@ -29,7 +29,7 @@ def _raise_unauthorized(detail: str) -> None:
     )
 
 
-async def get_current_principal(token: str = Depends(oauth2_scheme)) -> Principal:
+async def get_current_principal(security_scopes: SecurityScopes, request: Request, token: str = Depends(oauth2_scheme)) -> Principal:
     if not settings.auth_required:
         return Principal(subject="anonymous", scopes=["*"])
 
@@ -60,6 +60,13 @@ async def get_current_principal(token: str = Depends(oauth2_scheme)) -> Principa
 
     subject = payload.get("sub") or "unknown"
     scope = payload.get("scope","").split()
+
+    for scope in security_scopes.scopes:
+        if scope not in scopes and "*" not in scopes:
+            raise HTTPException(
+                status_code=403, 
+                detail=f"Forbidden: Missing required scope '{scope}'"
+            )
     return Principal(subject=subject, scopes=scopes)
 
 
