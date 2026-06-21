@@ -6,6 +6,7 @@ import httpx
 from fastapi import Request
 from fastapi.responses import Response, JSONResponse, StreamingResponse
 from httpx import TimeoutException, HTTPStatusError, RequestError
+from urllib.parse import urlparse, urljoin
 
 from app.core.config import settings
 from app.core.security import Principal
@@ -48,7 +49,17 @@ async def forward_request(request: Request, upstream_path: str, principal: Princ
         )
         
     client: httpx.AsyncClient = request.app.state.httpx
-    url = f"{settings.upstream_base_url}{upstream_path}"
+
+    #join URL to prevent  directory traversal escapes
+    url = urljoin(f"{settings.upstream_base_url}/", upstream_path.lstrip("/"))
+
+    # makes sure that the attacker didnt use an @ symbol or similar trick to change hostname
+    base_parsed = urlparse(setings.upstream_base_url)
+    target_parsed = urlparse(url)
+
+    if target_parsed.netloc != base_parsed.netloc:
+        return JSONResponse(status_code=403,content={"detail": "SSRF attempt blocked"})
+
     headers = dict(request.headers)
     headers.pop("host", None)
     headers.pop("content-length", None)
