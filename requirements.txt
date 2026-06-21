@@ -13,3 +13,5 @@ opentelemetry_instrumentation_fastapi==0.48b0
 opentelemetry_instrumentation_logging==0.48b0
 python_multipart==0.0.12
 pydantic_settings==2.5.2
+cachetools
+uuid

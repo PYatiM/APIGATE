@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import time 
 import asyncio
+import uuid
 from collections import defaultdict
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response, JSONResponse
+
+from cachetools import TTLCache
 
 from app.core.config import settings
 from app.services.metrics import RATE_LIMITED_TOTAL
@@ -15,19 +18,18 @@ class LocalRateLimiter:
     def __init__(self, limit: int, window_seconds: int) -> None:
         self.limit = limit
         self.window_seconds = window_seconds
-        self.counters: dict[tuple[str, int], int] = defaultdict(int)
+        self.counters = TTLCache(maxsize=10000, ttl=window_seconds)
         self._lock = asyncio.Lock()
 
     async def allow(self, client_id: str) -> bool:
         if self.limit <= 0:
             return True
         async with self._lock:
-            window = int(time.time() // self.window_seconds)
-            key = (client_id, window)
-            self.counters[key] += 1
-            if len(self.counters) > 5000:
-                self._prune(window)
-            return self.counters[key] <= self.limit
+            current_count = self.counters.get(client_id,0)
+            if current_count >= self.limit:
+                return False
+            self.counters[client_id] = current_count + 1
+            return True
 
     def _prune(self, current_window: int) -> None:
         old_windows = [key for key in self.counters if key[1] < current_window - 1]
@@ -74,12 +76,21 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def _allow_redis(self, redis, client_id: str) -> bool:
         if settings.rate_limit_requests <= 0:
             return True
-        window_key = int(time.time() // settings.rate_limit_window_seconds)
-        key = f"rl:{client_id}:{window_key}"
+        now = time.time()
+        window_start = now - settings.rate_limit_window_seconds
+        
+        key = f"rl:slide:{client_id}"
+        member = f"{now}-{uuid.uuid4().hex}" 
+        
         pipeline = redis.pipeline()
-        pipeline.incr(key, 1)
-        pipeline.expire(key, settings.rate_limit_window_seconds)
-        count, _ = await pipeline.execute()
-        return int(count) <= settings.rate_limit_requests
+        pipeline.zremrangebyscore(key, "-inf", window_start) 
+        pipeline.zadd(key, {member: now}) 
+        pipeline.zcard(key)
+        pipeline.expire(key, settings.rate_limit_window_seconds) 
+        
+        results = await pipeline.execute()
+        request_count = results[2]
+        
+        return int(request_count) <= settings.rate_limit_requests
     
     
