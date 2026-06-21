@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 #The difference between this import and previous jwt is that this lines makes it easier to use the standard PyJWT PyJWKClient and in the previouss import its for when pyhton-jose or standard PyJWT is used
@@ -51,6 +51,12 @@ async def get_current_principal(token: str = Depends(oauth2_scheme)) -> Principa
     
     except Exception as e:
         _raise_unauthorized(f"Invalid token : {str(e)}")
+    
+    redis = getattr(request.app.state, "redis", None)
+    if redis:
+        is_blocked = await redis.get(f"blocklist:{token}")
+        if is_blocked:
+            _raise_unauthorized("Token has been revoked")
 
     subject = payload.get("sub") or "unknown"
     scope = payload.get("scope","").split()
