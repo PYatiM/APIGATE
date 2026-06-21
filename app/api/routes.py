@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from fastapi import APIRouter, Request, Depends, HTTPException, status
+from fastapi import APIRouter, Request, Depends, HTTPException, status, security
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
@@ -98,7 +98,7 @@ async def issue_token(request: Request):
 
 
 @router.get("/stats")
-async def get_stats(request: Request) -> dict:
+async def get_stats(request: Request, principal: Principal = Security(get_current_principal, scopes=["admin"]) -> dict:
     _require_dashboard_key(request)
     snapshot = stats.snapshot()
     snapshot.update({
@@ -114,12 +114,10 @@ async def get_stats(request: Request) -> dict:
 
 
 @router.get("/dashboard")
-async def dashboard(request: Request) -> HTMLResponse:
+async def dashboard(request: Request, principal: Principal = Security(get_current_principal, scopes=["admin"]) -> HTMLResponse:
     _require_dashboard_key(request)
     html_path = Path("app/templates/dashboard.html")
     html_content = html_path.read_text(encoding="utf-8")
-    dashboard_key = _resolve_dashboard_key(request) or ""
-    html_content = html_content.replace("{{dashboard_key}}", dashboard_key)
     return HTMLResponse(html_content)
 
 
