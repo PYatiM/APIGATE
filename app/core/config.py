@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     oauth2_jwt_secret: str = "CHANGE_ME"
     oauth2_jwt_algorithm: str = "HS256"
     oauth2_leeway_seconds: int = 30
+    oauth2_jwks_url: str
 
     upstream_base_url: AnyHttpUrl | None = None
     mock_upstream: bool = True

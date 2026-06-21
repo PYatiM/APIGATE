@@ -6,6 +6,8 @@ from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+#The difference between this import and previous jwt is that this lines makes it easier to use the standard PyJWT PyJWKClient and in the previouss import its for when pyhton-jose or standard PyJWT is used
+import jwt as pyjwt
 
 from app.core.config import settings
 
@@ -17,7 +19,7 @@ class Principal:
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=settings.oauth2_token_url, auto_error=False)
-
+jwks_client =  pyjwt.PyJWKClient(settings.oauth2_jwks_url)
 
 def _raise_unauthorized(detail: str) -> None:
     raise HTTPException(
@@ -35,21 +37,23 @@ async def get_current_principal(token: str = Depends(oauth2_scheme)) -> Principa
         _raise_unauthorized("Missing bearer token")
 
     try:
-        payload = jwt.decode(
+        #Dynamic fetching of the correct public key based on the kid header in the JWT
+        signing_key = jwks_client.get_signing_key_from_jwt(token)
+
+        payload = pyjwt.decode(
             token,
-            settings.oauth2_jwt_secret,
-            algorithms=[settings.oauth2_jwt_algorithm],
+            signing_key.key,
+            algorithms=["RS256"], #Enforcing Asymmetric only
             issuer=settings.oauth2_issuer,
             audience=settings.oauth2_audience,
-            options={"verify_aud": True},
             leeway=settings.oauth2_leeway_seconds,
         )
-    except JWTError:
-        _raise_unauthorized("Invalid token")
+    
+    except Exception as e:
+        _raise_unauthorized(f"Invalid token : {str(e)}")
 
     subject = payload.get("sub") or "unknown"
-    scope = payload.get("scope") or ""
-    scopes = [value for value in scope.split() if value]
+    scope = payload.get("scope","").split()
     return Principal(subject=subject, scopes=scopes)
 
 
