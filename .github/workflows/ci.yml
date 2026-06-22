@@ -1,0 +1,22 @@
+name: APIGATE DevSecOps CI
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+jobs:
+  security-scans:
+    name: SAST & Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      # 1. Secret Scanning: Prevents hardcoded API keys from leaking
+      - name: Gitleaks Secret Scan
+        uses: zricethezav/gitleaks-action@v2
+        
+      # 2. SAST: Semgrep finds complex logic flaws in Python/FastAPI
+      - name: Semgrep Static Analysis
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: "p/python"
