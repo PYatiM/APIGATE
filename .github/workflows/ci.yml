@@ -20,3 +20,21 @@ jobs:
         uses: returntocorp/semgrep-action@v1
         with:
           config: "p/python"
+  dependency-testing:
+    name: SCA & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+        
+      # 3. SCA: Safety checks if your PyPI packages have known CVEs
+      - name: Dependency Vulnerability Scan (Safety)
+        run: safety check
+        
+      - name: Run Pytest
+        run: pytest tests/
