@@ -1,0 +1,60 @@
+name: APIGATE DevSecOps CI
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+jobs:
+  security-scans:
+    name: SAST & Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      # 1. Secret Scanning: Prevents hardcoded API keys from leaking
+      - name: Gitleaks Secret Scan
+        uses: zricethezav/gitleaks-action@v2
+        
+      # 2. SAST: Semgrep finds complex logic flaws in Python/FastAPI
+      - name: Semgrep Static Analysis
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: "p/python"
+  dependency-testing:
+    name: SCA & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+        
+      # 3. SCA: Safety checks if your PyPI packages have known CVEs
+      - name: Dependency Vulnerability Scan (Safety)
+        run: safety check
+        
+      - name: Run Pytest
+        run: pytest tests/
+
+  container-security:
+    name: Container Vulnerability Scan
+    needs: [security-scans, dependency-testing]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Build Docker Image
+        run: docker build -t apigate:ci-test .
+        
+      # 4. Container Scanning: Trivy scans the OS packages in the Docker image
+      - name: Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'apigate:ci-test'
+          format: 'table'
+          exit-code: '1' # Fails the pipeline if CRITICAL/HIGH vulns are found
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
