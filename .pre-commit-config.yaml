@@ -1,0 +1,21 @@
+repos:
+  # Enforce code formatting
+  - repo: https://github.com/psf/black
+    rev: 23.3.0
+    hooks:
+      - id: black
+
+  # Fast Python linter
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.261
+    hooks:
+      - id: ruff
+
+  # Baseline Static Application Security Testing (SAST)
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        args: ["-r", "app/", "-c", "pyproject.toml"]
+
+# to activaate this localy run pip install pre-commit and then pre-commit install in terminal
