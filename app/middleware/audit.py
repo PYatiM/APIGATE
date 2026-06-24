@@ -65,5 +65,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
         if request.url.scheme == "https" or forwarded_proto == "https":
             response.headers.setdefault("strict-transport-security","max-age=63072000; includeSubDomains; preload",)
 
-           
+        response.headers.setdefault("Content-Security-Policy",
+            "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none';"
+        )  
         return response
