@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     oauth2_leeway_seconds: int = 30
     oauth2_jwks_url: str
 
+    mtls_client_cert: str = "/etc/certs/client.pem"
+    mtls_client_key: str = "/etc/certs/client.key"
+    mtls_ca_cert: str = "/etc/certs/ca.pem"
+
     upstream_base_url: AnyHttpUrl | None = None
     mock_upstream: bool = True
 
