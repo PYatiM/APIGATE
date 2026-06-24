@@ -48,7 +48,7 @@ def create_app() -> FastAPI:
             app.state.redis = None
             logger.warning("Redis unavailable, falling back to local rate limiting: %s", exc)
 
-        app.state.httpx = httpx.AsyncClient()
+        app.state.httpx = httpx.AsyncClient(cert=(settings.mtls_client_cert, settings.mtls_client_key),verify=settings.mtls_ca_cert)
 
     @app.on_event("shutdown")
     async def shutdown() -> None:
