@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from urllib.parse import urlparse, parse_qs
 
 from app.core.config import settings
 
@@ -24,6 +26,15 @@ except Exception:
 def _join_otlp_endpoint(base: str, signal_path: str) -> str:
     return f"{base.rstrip('/')}{signal_path}"
 
+def scrub_telemetry_hook(span, scope):
+    if not span or not span.is_recording():
+        return
+
+    if "query_string" in scope:
+        qs = scope["query_string"].decode("utf-8")
+        if "password" in qs or "token" in qs:
+            span.set_attribute("http.target", "[REDACTED_QUERY_STRING]")
+
 def setup_telemetry(app) -> None:
     if not OTEL_AVAILABLE:
         logging.getLogger("gateway").warning("OpenTelemetry dependencies are missing. Telemetry is disabled. Install requirements.txt to enable it.")
@@ -37,7 +48,7 @@ def setup_telemetry(app) -> None:
         )
         tracer_provider.add_span_processor(BatchSpanProcessor(span_exporter))
         trace.set_tracer_provider(tracer_provider)
-        FastAPIInstrumentor.instrument_app(app)
+        FastAPIInstrumentor.instrument_app(app,server_request_hook=scrub_telemetry_hook)
 
     if settings.otel_logs_enabled:
         logger_provider = LoggerProvider(resource=resource)
