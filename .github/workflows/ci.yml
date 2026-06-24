@@ -58,3 +58,16 @@ jobs:
           exit-code: '1' # Fails the pipeline if CRITICAL/HIGH vulns are found
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
+    infrastructure-security:
+      name: Kubernetes Manifest Scan
+      needs: [container-security]
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v3
+      
+        - name: Checkov IaC Scanner
+          uses: bridgecrewio/checkov-action@master
+          with:
+            directory: infra/k8s/
+            framework: kubernetes
+            # Fails the build if readOnlyRootFilesystem or runAsNonRoot is missing
